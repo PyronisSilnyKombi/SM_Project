@@ -30,6 +30,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "light_sensor.h"
+#include "terminal_comunication.h"
 
 /* USER CODE END Includes */
 
@@ -40,17 +41,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BH1700_ADDRESS_L (0x23 << 1)
-#define BH1700_ADDRESS_H (0x5C << 1)
-#define BH1750_POWER_DOWN 				0x00
-#define BH1750_POWER_ON 				0x01
-#define BH1750_RESET 					0x07
-#define BH1750_CONTIONIUS_H_RES_MODE 	0x10
-#define BH1750_CONTIONIUS_H_RES_MODE2	0x11
-#define BH1750_CONTIONIUS_L_RES_MODE 	0x13
-#define BH1750_ONE_TIME_H_RES_MODE 		0x20
-#define BH1750_ONE_TIME_H_RES_MODE2		0x21
-#define BH1750_ONE_TIME_L_RES_MODE		0x23
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,32 +63,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-HAL_StatusTypeDef  BH1750_Status = HAL_ERROR;
-float lux_float = 0.0;
-int lux_int = 0;
-uint8_t command;
-uint8_t data[2];
-int lux_counter = 850;
-char rx_buffer[15];
-
-//char rx_buffer[15];
-//char key1[] = "LDR";
-//char key2[] = "LDR";
-//char key3[] = "LDG";
-//char key4[] = "LDG";
-//char key5[] = "LDB";
-//char key6[] = "LDB";
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	if (huart->Instance == USART3){
-			if(rx_buffer[0] == 'L' && rx_buffer[1] == 'E' && rx_buffer[2] == 'D'){
-				lux_counter = atoi(rx_buffer[3]);
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, lux_counter);
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, lux_counter);
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, lux_counter);
-			}
-		}
-}
 
 /* USER CODE END 0 */
 
@@ -139,17 +104,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1 ,lux_counter);
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2 ,lux_counter);
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3 ,lux_counter);
-
-
-  sensor_init(BH1750_Status, BH1750_POWER_ON, BH1750_CONTIONIUS_H_RES_MODE, BH1700_ADDRESS_L);
-
-/*  command = BH1750_POWER_ON;
-  BH1750_Status = HAL_I2C_Master_Transmit(&hi2c1, BH1700_ADDRESS_L, &command, 1, 100);
-  command = BH1750_CONTIONIUS_H_RES_MODE;
-  BH1750_Status = HAL_I2C_Master_Transmit(&hi2c1, BH1700_ADDRESS_L, &command, 1, 100);*/
+  BH1750_Status = HAL_ERROR;
+  BH1750_Status = sensor_init();
 
   /* USER CODE END 2 */
   /* Infinite loop */
@@ -157,15 +113,9 @@ int main(void)
   while (1)
   {
 
-	  HAL_UART_Receive_IT(&huart3, (uint8_t*)rx_buffer, 6);
-	  BH1750_Status = HAL_I2C_Master_Receive(&hi2c1, BH1700_ADDRESS_L, data, 2, 100);
-	  lux_float = ((data[0] << 8) | data[1]) / 1.2;
-	  lux_int = ((data[0] << 8) | data[1]) / 1.2;
-	  char tx_buffer[25];
-	  int n = sprintf(tx_buffer, "LIGHT INTENSITY: %d [lux] ", lux_int);
-	  HAL_UART_Transmit(&huart3, (uint8_t*)tx_buffer, n, 1000);
-	  HAL_Delay(500);
-
+	  HAL_UART_Receive_IT(&huart3, (uint8_t*)rx_buffer, 7);
+	  BH1750_Status = sensor_read();
+	  terminal_message(lux_int);
 
     /* USER CODE END WHILE */
 

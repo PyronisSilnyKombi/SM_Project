@@ -1,11 +1,20 @@
 #include "light_sensor.h"
 
-
-void sensor_init(HAL_StatusTypeDef status, const uint8_t x1, const uint8_t x2, const uint8_t x3){
-	uint8_t command = x1;
-	status = HAL_I2C_Master_Transmit(&hi2c1, x3, &command, 1, 100);
-	command = x2;
-	status = HAL_I2C_Master_Transmit(&hi2c1, x3, &command, 1, 100);
-return;
+HAL_StatusTypeDef sensor_init(){
+	HAL_StatusTypeDef BH1750_Status1, BH1750_Status2;
+	uint8_t command = BH1750_POWER_ON;
+	BH1750_Status1 = HAL_I2C_Master_Transmit(&hi2c1, BH1700_ADDRESS_L, &command, 1, 100);
+	command = BH1750_CONTIONIUS_H_RES_MODE;
+	BH1750_Status2 = HAL_I2C_Master_Transmit(&hi2c1, BH1700_ADDRESS_L, &command, 1, 100);
+	if(BH1750_Status1 == HAL_OK && BH1750_Status2 == HAL_OK)
+		return HAL_OK;
+	else
+		 return HAL_ERROR;
 }
 
+HAL_StatusTypeDef sensor_read(){
+	HAL_StatusTypeDef tmp = HAL_ERROR;
+	tmp = HAL_I2C_Master_Receive(&hi2c1, BH1700_ADDRESS_L, data, 2, 100);
+	lux_int = ((data[0] << 8) | data[1]) / 1.2;
+	return tmp;
+}

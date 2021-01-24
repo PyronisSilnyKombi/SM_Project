@@ -24,13 +24,13 @@
 #include "usart.h"
 #include "gpio.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "stdlib.h"
 #include "light_sensor.h"
 #include "terminal_comunication.h"
+#include "encoder.h"
 
 /* USER CODE END Includes */
 
@@ -73,6 +73,12 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	int count;
+	int user_val_encoder;
+	int user_val_terminal;
+	int val=0;
+	int pwm=0;
+	int regulator_period=0;
 
   /* USER CODE END 1 */
 
@@ -103,19 +109,57 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
 
   BH1750_Status = HAL_ERROR;
   BH1750_Status = sensor_init();
 
+
+  trial_transmission=0;
   /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		count = __HAL_TIM_GET_COUNTER(&htim4);
+		user_val_encoder=encoder_count(count);
+		user_val_terminal=terminal_value();
 
-	  HAL_UART_Receive_IT(&huart3, (uint8_t*)rx_buffer, 7);
+		if(user_val_encoder>0)
+		{
+			val=user_val_encoder;
+		}
+		else if(user_val_terminal>0)
+		{
+			val=user_val_terminal;
+		}
+
+
+		if((val-val/100)>lux_int&&pwm<1000&&(abs(val-lux_int)*100/val>10&&regulator_period%1==0||abs(val-lux_int)*100/val<=10&&regulator_period%50==0))
+		{
+			pwm++;
+		}
+		else if((val+val/100)<lux_int&&pwm>0&&(abs(val-lux_int)*100/val>10&&regulator_period%1==0||abs(val-lux_int)*100/val<=10&&regulator_period%50==0))
+		{
+			pwm--;
+		}
+
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1 ,pwm);
+
+	  HAL_UART_Receive_IT(&huart3, (uint8_t*)rx_buffer, 8);
 	  BH1750_Status = sensor_read();
 	  terminal_message(lux_int);
+
+	  if(regulator_period>=2000)
+	  {
+		  regulator_period=0;
+	  }
+	  trial_transmission++;
+	  regulator_period++;
+
+
+	HAL_Delay(10);
 
     /* USER CODE END WHILE */
 
